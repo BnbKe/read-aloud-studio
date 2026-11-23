@@ -2,7 +2,7 @@
 (function(){
 const R=window.RAS;if(!R)return;
 const $=id=>document.getElementById(id),esc=R.esc;
-const CDN={docx:'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js',pdf:'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',pptx:'https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js',xlsx:'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'};
+const CDN={docx:'https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js',pdf:'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',pptx:'https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js',xlsx:'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'};
 const got={};const lib=u=>got[u]||(got[u]=new Promise((ok,no)=>{const s=document.createElement('script');s.src=u;s.onload=ok;s.onerror=()=>{delete got[u];no(new Error('A file library could not load. Check your connection and try again.'))};document.head.appendChild(s)}));
 
 /* ---------- styles + markup ---------- */

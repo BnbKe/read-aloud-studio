@@ -420,10 +420,10 @@ document.addEventListener('keydown',e=>{if(/INPUT|TEXTAREA|SELECT/.test(e.target
 /* ---------- Claude capabilities ---------- */
 const CV=['buttery','airy','glassy','rounded'];
 const LOCAL={
-  sample:()=>API_URL?async(conv,o={})=>{o.onText&&o.onText({text:'Thinking...'});
+  sample:()=>API_URL?async function S(conv,o={},t=0){o.onText&&o.onText({text:'Thinking...'});
     let r;try{r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:conv,deep:o.modelTier==='complex'}),signal:o.signal})}
     catch(e){if(e.name==='AbortError')throw e;throw{code:'network'}}
-    const j=await r.json().catch(()=>({}));if(r.status===429)throw{code:'rate_limited'};if(!r.ok||!j.text)throw{code:'error',message:j.error};return{text:j.text}}:null,
+    const j=await r.json().catch(()=>({}));if(r.status===429)throw{code:'rate_limited'};if(!r.ok||!j.text){if(!t)return S(conv,o,1);throw{code:'error',message:j.error}}return{text:j.text}}:null,
   dictation:()=>{const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return null;let rec=null;const cb={};
     return{start(){return new Promise((ok,no)=>{rec=new R();rec.lang=navigator.language||'en-US';rec.interimResults=true;rec.continuous=false;
         rec.onstart=()=>{cb.s&&cb.s({state:'listening'});ok()};

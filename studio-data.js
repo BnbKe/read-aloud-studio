@@ -188,7 +188,7 @@ ${table}`);
 $('aq-q').addEventListener('keydown',e=>{if(e.key==='Enter')$('aq-go').click()});
 
 /* ---------- report ---------- */
-function digest(){const lines=[`Table "${T.name}": ${T.n} rows, ${T.cols.length} columns.`];T.cols.forEach(c=>{if(c.type==='number'){const s=stats(c.v);lines.push(`${c.name}: total ${fmt(s.sum)}, average ${fmt(s.mean)}, median ${fmt(s.median)}, range ${fmt(s.min)}–${fmt(s.max)}.`)}else if(c.type==='category'){lines.push(`${c.name}: ${counts(c.v).slice(0,6).map(([v,n])=>`${v} (${n} rows)`).join(', ')}.`)}});
+function digest(){const lines=[`Table "${T.name}": ${T.n} rows, ${T.cols.length} columns.`];T.cols.forEach(c=>{if(c.type==='number'){const s=stats(c.v);lines.push(`${c.name}: total ${fmt(s.sum)}; per row (one row = one record in the table): average ${fmt(s.mean)}, median ${fmt(s.median)}, range ${fmt(s.min)}–${fmt(s.max)}.`)}else if(c.type==='category'){lines.push(`${c.name}: ${counts(c.v).slice(0,6).map(([v,n])=>`${v} (${n} rows)`).join(', ')}.`)}});
  lines.push('Automatic insights:',...(T.ins||[]).map(i=>'- '+i));charts.filter(c=>c.inReport&&c.res.kind!=='scatter').slice(0,6).forEach(c=>lines.push(`Chart "${c.title}": ${c.res.labels.slice(0,12).map((l,i)=>`${l}=${fmt(c.res.values[i])}`).join(', ')}`));return lines.join('\n').slice(0,12000)}
 $('rp-go').onclick=async()=>{if(!T)return;$('rp-tip').textContent='Writing findings…';
  try{const j=parse(await ai(`You are a senior data analyst writing for: ${$('rp-aud').value.trim()||'a general business audience'}. Using ONLY the facts below (quote numbers exactly; do not invent data), write the findings.

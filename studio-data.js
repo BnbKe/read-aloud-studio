@@ -174,7 +174,7 @@ ${schema()}
 Question: "${q}"
 Return ONLY valid JSON: {"type":"bar|line|pie|hist|scatter","x":"column to group by (exact name)","y":"number column (exact name) or (count)","agg":"sum|mean|count|max|min","sort":"desc|asc","top":10,"filters":[{"col":"exact column","op":"=|!=|>|<|>=|<=|contains","value":"..."}],"title":"short chart title"}
 Use "line" with a date column for trends over time. Use exact column names and exact category values from the list. Use "filters":[] if none.`));
-  if(!j||!j.x)throw{code:'spec'};const res=compute(j);
+  if(!j||!j.x)throw{code:'spec'};j.top=Math.max(+j.top||10,5);const res=compute(j);
   const rows=res.kind==='scatter'?[]:res.labels.map((l,i)=>[l,res.values[i]]);
   const table=res.kind==='scatter'?`Correlation between ${res.xl} and ${res.yl}: ${res.r==null?'not enough data':nf.format(res.r)} (${res.pts.length} rows)`:rows.slice(0,25).map(r=>`${r[0]}: ${fmt(r[1])}`).join('\n');
   const ans=await ai(`Answer the question in 1-3 plain sentences using ONLY the computed results below. Quote numbers exactly as given. If the results cannot answer it, say what they show instead.

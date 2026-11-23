@@ -376,7 +376,7 @@ function setKind(k,r,name){
   $('how').textContent=P.how;$('hdrwrap').hidden=k!=='xlsx';
   const rate=store.get('rate-'+k,null);if(rate){$('rate').value=rate;$('ratev').textContent=(+rate).toFixed(2).replace(/0$/,'')+'×'}
   $('modes').innerHTML=P.modes.map(([v,l])=>`<button data-mode="${v}" aria-pressed="${v===mode}">${l}</button>`).join('');
-  idx=0;build();indexDoc();msgs=[];renderMsgs();setStatus('Ready. Press play, or tap any sentence to start there.')}
+  idx=0;build();indexDoc();msgs=[];renderMsgs();document.dispatchEvent(new Event('ras-doc'));setStatus('Ready. Press play, or tap any sentence to start there.')}
 
 /* ---------- voices ---------- */
 function fillVoices(){
@@ -560,6 +560,9 @@ $('mic').onclick=()=>{
     quiet();return}
   tip("Tap the microphone key on your phone's keyboard and speak, then press send.");$('q').focus()};
 
+/* ---------- hooks for add-on modules ---------- */
+window.RAS={info:()=>({kind,docName,type:PROFILES[kind].name}),fullSecs:()=>{const save=mode;mode=FULL[kind];try{return B[kind]()}finally{mode=save}},raw:()=>raw,ask:async(conv,o)=>{const s=SAMPLE||await samplePromise;if(!s)throw{code:'unavailable'};return s(conv,o)},load:(name,secs)=>setKind('text',secs,name),find:q=>{const k=String(q||'').toLowerCase().replace(/\s+/g,' ').trim();if(!k)return false;let i=S.findIndex(s=>s.t.toLowerCase().includes(k));if(i<0){const w=k.split(' ').slice(0,4).join(' ');i=S.findIndex(s=>s.t.toLowerCase().includes(w))}if(i<0)return false;jump(i);$('reader').scrollIntoView({behavior:'smooth',block:'start'});return true},split,esc};
+
 /* ---------- sample ---------- */
 setKind('text',textSecs(`# Welcome
 This is a sample to show how the reader works. Press the pink play button, or tap any sentence to start from there. The sentence being spoken lights up as it goes.
@@ -571,5 +574,6 @@ A PDF has its headers, footers and page numbers removed, so you hear the content
 Pick any voice your device offers, and set the speed and pitch. The app remembers your voice, and keeps a separate speed for each kind of file.`),'Sample: how this app reads');
 }
 </script>
+<script src="studio-pro.js"></script>
 </body>
 </html>

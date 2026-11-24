@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Read Aloud Studio</title>
+<meta name="description" content="Listen to PDFs, slides, spreadsheets and Word docs, and ask questions about them.">
+<meta name="theme-color" content="#0a2540">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: calm, capable tool — a listening room for documents
+   IDEA: a teleprompter / audiobook reader that changes its script per file type
+   PICTURE: the live reader itself, the spoken sentence lit in sky blue
+   COLOUR and TYPE: deep sea ground, sky highlight, signal pink for play; Hanken Grotesk
+   LAYOUT: three strips on one axis — reader (tallest), transport + voice, tailoring + outline */
+:root{color-scheme:dark;--bg:#0a2540;--deep:#071b30;--card:#0f2f50;--line:#1d4268;--ink:#ffffff;--soft:#b9cde2;--sky:#8fd3ff;--pink:#ff5c8a}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Hanken Grotesk",system-ui,sans-serif;overflow-x:clip}
+.wrap{max-width:1240px;margin:0 auto;padding:0 max(4vw,16px)}
+header{display:flex;flex-wrap:wrap;align-items:end;gap:16px;justify-content:space-between;padding:28px 0 18px}
+h1{font-weight:300;font-size:clamp(32px,5vw,48px);line-height:1.05;margin:0;text-wrap:balance}
+.sub{color:var(--soft);margin:6px 0 0;font-size:16px}
+.acts{display:flex;gap:10px;flex-wrap:wrap}
+button,.btn,select{font:inherit;font-size:16px;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:12px;min-height:44px;padding:0 16px;cursor:pointer}
+button:hover,.btn:hover{border-color:var(--sky)}
+:focus-visible{outline:3px solid var(--sky);outline-offset:2px}
+.btn.primary{background:var(--sky);color:#06213a;border-color:var(--sky);font-weight:600;display:inline-flex;align-items:center}
+input[type=file]{display:none}
+/* strip 1: reader */
+.reader{position:relative;background:var(--deep);border:1px solid var(--line);border-radius:20px;overflow:hidden}
+.rhead{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--line)}
+.doc{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.badge{font-size:13px;padding:3px 10px;border-radius:99px;background:var(--line);color:var(--sky);white-space:nowrap}
+.page{height:clamp(300px,50vh,520px);overflow-y:auto;padding:20px clamp(18px,4vw,48px) 40px;font-size:clamp(17px,2vw,20px);line-height:1.7;color:var(--soft)}
+.page h3{font-size:22px;font-weight:600;color:var(--ink);margin:26px 0 6px;line-height:1.3}
+.page h3:first-child{margin-top:4px}
+.page p{margin:0 0 14px;max-width:70ch}
+.s{cursor:pointer;border-radius:6px;padding:1px 2px;transition:background .25s,color .25s}
+.s:hover{color:var(--ink)}
+.s.done{color:#8aa3bd}
+.s.on{background:var(--sky);color:#06213a}
+.drop{position:absolute;inset:0;display:none;place-items:center;background:rgba(10,37,64,.92);border:3px dashed var(--sky);border-radius:20px;font-size:22px}
+.reader.over .drop{display:grid}
+.prog{height:4px;background:var(--line)}.prog i{display:block;height:100%;width:0;background:var(--pink);transition:width .3s}
+.note{font-size:13px;color:var(--soft);padding:8px 20px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+/* strip 2: transport */
+.bar{display:grid;grid-template-columns:auto minmax(0,1fr);gap:18px;align-items:center;margin:16px 0;padding:16px 20px;background:var(--card);border:1px solid var(--line);border-radius:20px}
+.tp{display:flex;gap:8px;align-items:center}
+.tp button{width:48px;padding:0;display:grid;place-items:center}
+.tp #play{width:64px;height:64px;border-radius:50%;background:var(--pink);border-color:var(--pink)}
+.tp svg{width:22px;height:22px;fill:currentColor}
+.vs{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) auto;gap:14px;align-items:end}
+label{display:grid;gap:4px;font-size:13px;color:var(--soft)}
+select{width:100%;padding:0 10px}
+input[type=range]{width:100%;accent-color:var(--sky);height:44px}
+/* strip 3: tailoring */
+.grid{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px;padding-bottom:40px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px 20px}
+.panel h2{font-size:20px;font-weight:500;margin:0 0 6px}
+.how{color:var(--soft);margin:0 0 14px;font-size:16px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.chips button[aria-pressed=true]{background:var(--sky);color:#06213a;border-color:var(--sky);font-weight:600}
+.tog{display:flex;align-items:center;gap:10px;font-size:16px;color:var(--ink);min-height:44px}
+.tog input{width:22px;height:22px;accent-color:var(--sky)}
+.out{list-style:none;margin:0;padding:0;max-height:300px;overflow-y:auto}
+.out button{width:100%;text-align:left;border:0;background:none;border-radius:8px;padding:6px 10px;min-height:40px;color:var(--soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.out button.cur{color:var(--ink);background:var(--line)}
+textarea{width:100%;min-height:120px;font:inherit;font-size:16px;color:var(--ink);background:var(--deep);border:1px solid var(--line);border-radius:12px;padding:10px}
+details summary{cursor:pointer;min-height:44px;display:flex;align-items:center;color:var(--sky)}
+.err{color:var(--pink)}
+.types{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.side{display:grid;gap:16px;align-content:start}
+.chat{display:grid;gap:12px}
+.chat .top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.msgs{max-height:min(60vh,480px);min-height:120px;overflow-y:auto;display:grid;gap:10px;align-content:start;padding:2px}
+.m{padding:10px 14px;border-radius:14px;max-width:92%;line-height:1.55}
+.m p{margin:0 0 8px}.m p:last-child{margin:0}
+.m.u{justify-self:end;background:var(--sky);color:#06213a}
+.m.a{justify-self:start;background:var(--deep);border:1px solid var(--line)}
+.m.sys{justify-self:center;color:var(--soft);font-size:14px;background:none;padding:4px}
+.cite{min-height:28px;padding:0 9px;border-radius:99px;font-size:13px;background:var(--line);color:var(--sky);border:0;margin:0 2px;font-weight:600}
+.gk{border-left:3px solid var(--pink);padding-left:10px;color:var(--soft)}
+.gk b{color:var(--pink);font-weight:600}
+.srcs{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;font-size:13px;color:var(--soft);align-items:center}
+.ask{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:end}
+#q{min-height:48px;max-height:160px;resize:vertical}
+.mic svg,.send svg{width:22px;height:22px;fill:currentColor}
+.mic,.send{width:48px;height:48px;padding:0;display:grid;place-items:center;border-radius:50%}
+.send{background:var(--sky);color:#06213a;border-color:var(--sky)}
+.mic.on{background:var(--pink);border-color:var(--pink);animation:pulse 1.2s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 8px rgba(255,92,138,.25)}}
+.opts{display:flex;flex-wrap:wrap;gap:4px 18px}
+.opts .tog{min-height:36px;font-size:15px}
+.tip{font-size:14px;color:var(--soft);min-height:20px}
+@media(max-width:860px){.bar{grid-template-columns:1fr}.tp{justify-content:center}.vs{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.vs label:first-child{grid-column:1/-1}.grid{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.s,.prog i{transition:none}.mic.on{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div><h1>Read Aloud Studio</h1><p class="sub">Drop in a PDF, slide deck, spreadsheet, Word doc or text — it reads each one the way that file deserves.</p></div>
+  <div class="acts">
+    <label class="btn primary" for="file">Open a file</label>
+    <input type="file" id="file" accept=".pdf,.pptx,.xlsx,.xls,.csv,.docx,.txt,.md">
+  </div>
+</header>
+
+<section class="reader" id="reader">
+  <div class="rhead"><span class="doc" id="docname">Sample: how this app reads</span><span class="badge" id="badge">Text</span></div>
+  <div class="prog"><i id="progbar"></i></div>
+  <div class="page" id="page" aria-live="off"></div>
+  <div class="note"><span id="status">Tap any sentence to start from there.</span><span id="remain"></span></div>
+  <div class="drop">Drop to read it aloud</div>
+</section>
+
+<section class="bar">
+  <div class="tp">
+    <button id="psec" aria-label="Previous section"><svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14l-10-7z"/></svg></button>
+    <button id="pse" aria-label="Previous sentence"><svg viewBox="0 0 24 24"><path d="M18 5v14L8 12z"/></svg></button>
+    <button id="play" aria-label="Play"><svg viewBox="0 0 24 24" id="playic"><path d="M7 4v16l13-8z"/></svg></button>
+    <button id="nse" aria-label="Next sentence"><svg viewBox="0 0 24 24"><path d="M6 5v14l10-7z"/></svg></button>
+    <button id="nsec" aria-label="Next section"><svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l10-7z"/></svg></button>
+  </div>
+  <div class="vs">
+    <label>Voice<select id="voice"></select></label>
+    <label>Speed <span id="ratev">1.0×</span><input type="range" id="rate" min="0.5" max="2" step="0.05" value="1"></label>
+    <label>Pitch <span id="pitchv">1.0</span><input type="range" id="pitch" min="0.5" max="1.5" step="0.05" value="1"></label>
+    <button id="test">Test voice</button>
+  </div>
+</section>
+
+<section class="grid">
+  <div class="panel chat" id="chatpanel">
+    <div class="top"><h2 style="margin:0">Ask about this document</h2>
+      <select id="ground" aria-label="Answer using" style="width:auto"><option value="blend">Document first, plus general knowledge</option><option value="doc">Document only</option></select></div>
+    <div class="chips" id="sugg">
+      <button data-q="Summarize this document in a few sentences.">Summarize</button>
+      <button data-q="__here">Explain what I'm hearing now</button>
+      <button data-q="What are the key takeaways or numbers I should remember?">Key takeaways</button>
+      <button data-q="Quiz me with one question on this document. Wait for my answer before giving the next.">Quiz me</button>
+    </div>
+    <div class="msgs" id="msgs" aria-live="polite"><div class="m sys">Ask anything by typing or speaking. Answers point to the exact page, slide or sheet they come from.</div></div>
+    <div class="tip" id="tip"></div>
+    <form class="ask" id="askf">
+      <textarea id="q" rows="1" placeholder="Ask a question… (or tap the mic)"></textarea>
+      <button type="button" class="mic" id="mic" aria-label="Speak your question"><svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V22h2v-3.1A7 7 0 0 0 19 12z"/></svg></button>
+      <button type="submit" class="send" id="send" aria-label="Send"><svg viewBox="0 0 24 24" id="sendic"><path d="M3 20l18-8L3 4v6l12 2-12 2z"/></svg></button>
+    </form>
+    <div class="opts">
+      <label class="tog"><input type="checkbox" id="speakans" checked> Read answers aloud</label>
+      <label class="tog"><input type="checkbox" id="deep"> Deeper reasoning (slower)</label>
+    </div>
+  </div>
+  <div class="side">
+  <div class="panel">
+    <h2 id="tailtitle">Tailored reading</h2>
+    <p class="how" id="how"></p>
+    <div class="chips" id="modes"></div>
+    <label class="tog"><input type="checkbox" id="announce" checked> Announce sections (Page 2, Slide 4…)</label>
+    <label class="tog" id="hdrwrap" hidden><input type="checkbox" id="hdr" checked> First row is column headers</label>
+    <details><summary>Troubleshoot sound</summary>
+      <p class="how" id="diag" style="margin:4px 0 8px"></p>
+      <p class="how" style="margin:0 0 8px"><b>Android:</b> Settings → search “Text-to-speech” → set the engine to <b>Speech Services by Google</b>, tap its gear → Install voice data → download English. Then fully close Chrome and reopen this page.<br><b>iPhone:</b> turn off the silent switch; Settings → Accessibility → Spoken Content → Voices.</p>
+    </details>
+    <details><summary>Or paste text to read</summary>
+      <textarea id="paste" placeholder="Paste an article, email or notes…"></textarea>
+      <button id="readpaste" style="margin-top:8px">Read pasted text</button>
+    </details>
+  </div>
+  <div class="panel">
+    <h2>Outline</h2>
+    <ul class="out" id="outline"></ul>
+  </div>
+</div>
+</section>
+<footer style="padding:8px 0 40px;font-size:14px;color:var(--soft)"><a href="privacy.html" style="color:var(--sky)">Privacy &amp; terms</a> · Files stay on your device. AI answers can be wrong; check important facts.</footer>
+</div>
+
+<script>
+{
+const $=id=>document.getElementById(id);
+/* ===== SETTINGS: paste your Cloudflare Worker URL here to switch on Q&A ===== */
+const API_URL='/api/ask';
+/* ========================================================================= */
+const synth=window.speechSynthesis;
+const STANDALONE=!(window.claude&&window.claude.use);
+let T=null,D=null,SAMPLE=null,samplePromise;
+const LIB={
+  pdf:['https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js','https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'],
+  zip:['https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'],
+  xlsx:['https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'],
+  docx:['https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js']};
+const loaded={};
+const loadOne=u=>loaded[u]||(loaded[u]=new Promise((ok,no)=>{const s=document.createElement('script');s.src=u;s.onload=ok;s.onerror=()=>no(new Error('Could not load a reader library'));document.head.appendChild(s)}));
+const load=async k=>{for(const u of LIB[k])await loadOne(u)};
+const store={get(k,d){try{const v=localStorage.getItem('ras-'+k);return v==null?d:v}catch(e){return d}},set(k,v){try{localStorage.setItem('ras-'+k,v)}catch(e){}}};
+const last=a=>a[a.length-1];
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const nf=new Intl.NumberFormat(undefined,{maximumFractionDigits:2});
+const list=a=>a.length<3?a.join(' and '):a.slice(0,-1).join(', ')+', and '+a[a.length-1];
+
+/* ---------- per-type profiles ---------- */
+const PROFILES={
+  text:{name:'Text',how:'Reads paragraph by paragraph and announces headings. Skim reads just the first sentence of each paragraph.',modes:[['full','Full text'],['skim','Skim']]},
+  pdf:{name:'PDF',how:'Removes repeating headers, footers and page numbers, rejoins words split across lines, and rebuilds paragraphs so it reads like prose instead of a page layout.',modes:[['clean','Clean reading'],['skim','Skim'],['raw','Everything on the page']]},
+  pptx:{name:'Slides',how:'Reads each slide as a presenter would: the title, then the bullet points, then (if you like) the speaker notes, so you can rehearse a talk.',modes:[['slides','Slides only'],['notes','Slides + notes'],['notesonly','Speaker notes only']]},
+  xlsx:{name:'Spreadsheet',how:'Reading every cell out loud is useless, so it summarises first: size, columns, totals, ranges and the top row. Row by row reads each record as "column, value".',modes:[['summary','Summary'],['rows','Row by row'],['both','Summary + rows']]},
+  docx:{name:'Word',how:'Follows the document structure: headings become sections you can jump between, lists are read item by item and tables row by row.',modes:[['full','Full text'],['skim','Skim']]}};
+let kind='text',raw=null,mode='full',docName='';
+
+/* ---------- sentence splitting ---------- */
+function split(t){
+  t=t.replace(/\s+/g,' ').trim(); if(!t)return[];
+  const out=[];
+  for(const s of t.replace(/([.!?…]["”’)\]]?)\s+(?=["“‘(\[]?[A-Z0-9])/g,'$1\u0001').split('\u0001')){
+    if(s.length<=260){out.push(s);continue}
+    let cur='';for(const p of s.replace(/([,;:])\s+/g,'$1\u0001').split('\u0001')){if((cur+' '+p).length>220&&cur){out.push(cur);cur=p}else cur=cur?cur+' '+p:p}
+    if(cur)out.push(cur)}
+  return out}
+
+/* ---------- builders: raw -> sections [{label, paras}] ---------- */
+const skim=secs=>secs.map(s=>({label:s.label,paras:s.paras.map(p=>split(p)[0]||'').filter(Boolean)}));
+const B={
+  text:()=>mode==='skim'?skim(raw):raw,
+  docx:()=>mode==='skim'?skim(raw):raw,
+  pdf(){
+    const pages=raw, n=pages.length, key=l=>l.t.replace(/\d+/g,'#').trim().toLowerCase();
+    const cnt={};
+    if(mode!=='raw'&&n>=3)pages.forEach(p=>{new Set([...p.slice(0,2),...p.slice(-2)].map(key)).forEach(k=>cnt[k]=(cnt[k]||0)+1)});
+    const lim=Math.max(2,n*0.4);
+    const secs=pages.map((lines,i)=>{
+      let L=mode==='raw'?lines:lines.filter((l,j)=>!/^(page\s*)?\d+(\s*(of|\/)\s*\d+)?$/i.test(l.t.trim())&&!((j<2||j>=lines.length-2)&&cnt[key(l)]>=lim));
+      const gaps=[];for(let j=1;j<L.length;j++)gaps.push(Math.abs(L[j-1].y-L[j].y));
+      const med=gaps.slice().sort((a,b)=>a-b)[gaps.length>>1]||12;
+      const paras=[];let cur='';
+      L.forEach((l,j)=>{const t=l.t.trim();if(!t)return;
+        if(j&&Math.abs(L[j-1].y-l.y)>med*1.45&&cur){paras.push(cur);cur=''}
+        if(/[a-z]-$/.test(cur)&&/^[a-z]/.test(t))cur=cur.slice(0,-1)+t;else cur=cur?cur+' '+t:t});
+      if(cur)paras.push(cur);
+      return{label:'Page '+(i+1),paras}}).filter(s=>s.paras.length);
+    return mode==='skim'?skim(secs):secs},
+  pptx(){
+    return raw.map((s,i)=>{
+      const paras=[];
+      if(mode!=='notesonly'){if(s.title)paras.push(s.title.replace(/[^.!?]$/,'$&.'));s.bullets.forEach(b=>paras.push(b.replace(/[^.!?:]$/,'$&.')))}
+      if(mode!=='slides'&&s.notes)paras.push((mode==='notes'?'Speaker notes. ':'')+s.notes);
+      return{label:'Slide '+(i+1)+(s.title&&mode==='notesonly'?': '+s.title:''),paras}}).filter(s=>s.paras.length)},
+  xlsx(){
+    const hasH=$('hdr').checked,secs=[];
+    raw.forEach(sh=>{
+      const rows=sh.rows,rr=sh.raw;if(!rows.length)return;
+      const nc=Math.max(...rows.map(r=>r.length));
+      const head=Array.from({length:nc},(_,c)=>hasH&&String(rows[0][c]||'').trim()||'Column '+XLSX.utils.encode_col(c));
+      const body=rows.slice(hasH?1:0),rbody=rr.slice(hasH?1:0);
+      if(mode!=='rows'){
+        const p=[`Sheet ${sh.name} has ${body.length} row${body.length==1?'':'s'} and ${nc} column${nc==1?'':'s'}.`,`The columns are ${list(head.slice(0,12))}${nc>12?', and '+(nc-12)+' more':''}.`];
+        const textCol=head.findIndex((_,c)=>body.some(r=>r[c]&&isNaN(+String(r[c]).replace(/[,$%]/g,''))));
+        let firstNum=-1;
+        head.forEach((h,c)=>{
+          const vals=rbody.map(r=>r[c]).filter(v=>v!==''&&v!=null),nums=vals.filter(v=>typeof v==='number');
+          if(vals.length&&nums.length/vals.length>=0.6){
+            const sum=nums.reduce((a,b)=>a+b,0),mx=Math.max(...nums),mn=Math.min(...nums);
+            p.push(`${h} ranges from ${nf.format(mn)} to ${nf.format(mx)}, averaging ${nf.format(sum/nums.length)}, with a total of ${nf.format(sum)}.`);
+            if(firstNum<0){firstNum=c;if(textCol>=0&&textCol!==c){const r=rbody.find(r=>r[c]===mx),i=rbody.indexOf(r);if(body[i]&&body[i][textCol])p.push(`The highest ${h} is in the row where ${head[textCol]} is ${body[i][textCol]}.`)}}}
+          else if(vals.length){const u=[...new Set(body.map(r=>r[c]).filter(Boolean))];if(u.length<=6&&u.length<vals.length)p.push(`${h} has ${u.length} distinct value${u.length==1?'':'s'}: ${list(u.map(String))}.`)}});
+        secs.push({label:'Sheet '+sh.name+' summary',paras:p})}
+      if(mode!=='summary'){
+        const cap=300,p=body.slice(0,cap).map((r,i)=>{const cells=head.map((h,c)=>String(r[c]??'').trim()?`${h}, ${r[c]}`:'').filter(Boolean);return cells.length?`Row ${i+1}: ${cells.join('; ')}.`:''}).filter(Boolean);
+        if(body.length>cap)p.push(`That is the first ${cap} rows of ${body.length}.`);
+        secs.push({label:'Sheet '+sh.name+' rows',paras:p})}});
+    return secs}};
+
+/* ---------- parsers: file -> raw ---------- */
+async function parse(file){
+  const ext=(file.name.split('.').pop()||'').toLowerCase();
+  if(ext==='pdf'){await load('pdf');pdfjsLib.GlobalWorkerOptions.workerSrc=LIB.pdf[1];
+    const doc=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise,pages=[];
+    for(let i=1;i<=doc.numPages;i++){setStatus(`Reading page ${i} of ${doc.numPages}…`);
+      const tc=await(await doc.getPage(i)).getTextContent(),lines=[];let cur=null;
+      for(const it of tc.items){const y=it.transform?it.transform[5]:0;
+        if(!cur||Math.abs(cur.y-y)>2){cur={t:'',y};lines.push(cur)}
+        cur.t+=(cur.t&&!/\s$/.test(cur.t)&&!/^\s/.test(it.str)&&it.str?' ':'')+it.str;
+        if(it.hasEOL)cur=null}
+      pages.push(lines.filter(l=>l.t.trim()))}
+    if(!pages.some(p=>p.length))throw new Error('This PDF has no text layer (it may be a scanned image).');
+    return['pdf',pages]}
+  if(ext==='pptx'){await load('zip');const z=await JSZip.loadAsync(await file.arrayBuffer()),X=s=>new DOMParser().parseFromString(s,'application/xml');
+    const names=Object.keys(z.files).filter(n=>/^ppt\/slides\/slide\d+\.xml$/.test(n)).sort((a,b)=>a.match(/\d+/)[0]-b.match(/\d+/)[0]);
+    const paras=el=>[...el.getElementsByTagName('a:p')].map(p=>[...p.getElementsByTagName('a:t')].map(t=>t.textContent).join('').trim()).filter(Boolean);
+    const slides=[];
+    for(const n of names){const d=X(await z.file(n).async('string'));let title='',bullets=[];
+      for(const sp of d.getElementsByTagName('p:sp')){const ph=sp.getElementsByTagName('p:ph')[0],ty=ph&&ph.getAttribute('type'),t=paras(sp);
+        if(/title|ctrTitle/.test(ty||'')&&!title)title=t.join(' ');else if(!/sldNum|dt|ftr/.test(ty||''))bullets.push(...t)}
+      for(const g of d.getElementsByTagName('a:tbl'))for(const tr of g.getElementsByTagName('a:tr'))bullets.push([...tr.getElementsByTagName('a:tc')].map(c=>paras(c).join(' ')).join('; '));
+      let notes='';const rel=z.file(n.replace('slides/','slides/_rels/')+'.rels');
+      if(rel){const m=(await rel.async('string')).match(/Target="\.\.\/notesSlides\/(notesSlide\d+\.xml)"/);
+        if(m&&z.file('ppt/notesSlides/'+m[1])){const nd=X(await z.file('ppt/notesSlides/'+m[1]).async('string'));
+          for(const sp of nd.getElementsByTagName('p:sp')){const ph=sp.getElementsByTagName('p:ph')[0];if(ph&&ph.getAttribute('type')==='body')notes+=paras(sp).join(' ')}}}
+      slides.push({title,bullets,notes})}
+    return['pptx',slides]}
+  if(['xlsx','xls','csv'].includes(ext)){await load('xlsx');const wb=XLSX.read(await file.arrayBuffer());
+    return['xlsx',wb.SheetNames.map(name=>{const ws=wb.Sheets[name];return{name,rows:XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:'',blankrows:false}),raw:XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:'',blankrows:false})}})]}
+  if(ext==='docx'){await load('docx');const r=await mammoth.convertToHtml({arrayBuffer:await file.arrayBuffer()});
+    const d=new DOMParser().parseFromString(r.value,'text/html'),secs=[{label:'',paras:[]}];
+    for(const el of d.body.children){const tag=el.tagName,t=el.textContent.trim();if(!t)continue;
+      if(/^H[1-6]$/.test(tag))secs.push({label:t,paras:[]});
+      else if(tag==='UL'||tag==='OL')[...el.querySelectorAll('li')].forEach(li=>last(secs).paras.push(li.textContent.trim().replace(/[^.!?:]$/,'$&.')));
+      else if(tag==='TABLE')[...el.rows].forEach((r,i)=>last(secs).paras.push(`Row ${i+1}: ${[...r.cells].map(c=>c.textContent.trim()).join('; ')}.`));
+      else last(secs).paras.push(t)}
+    return['docx',secs.filter(s=>s.label||s.paras.length)]}
+  return['text',textSecs(await file.text())]}
+function textSecs(t){const secs=[{label:'',paras:[]}];
+  for(const b of t.split(/\n\s*\n/)){for(const line of b.split('\n')){const m=line.match(/^\s*#{1,6}\s+(.*)/);if(m){secs.push({label:m[1].trim(),paras:[]});b.replace(line,'')}}
+    const body=b.split('\n').filter(l=>!/^\s*#{1,6}\s/.test(l)).join(' ').replace(/[*_`>]+/g,'').replace(/^\s*[-•]\s*/,'').trim();
+    if(body)last(secs).paras.push(body)}
+  return secs.filter(s=>s.label||s.paras.length)}
+
+/* ---------- render + playback ---------- */
+let curSecs=[],S=[],secStart=[],idx=0,playing=false,token=0;
+function build(){
+  const secs=B[kind](),ann=$('announce').checked;curSecs=secs;S=[];secStart=[];let html='';
+  secs.forEach((sec,si)=>{secStart.push(S.length);
+    if(sec.label){html+=`<h3>${ann?span(sec.label,si,true):esc(sec.label)}</h3>`}
+    sec.paras.forEach(p=>{html+='<p>'+split(p).map(t=>span(t,si)).join(' ')+'</p>'})});
+  $('page').innerHTML=html||'<p>Nothing readable was found in this file.</p>';
+  $('outline').innerHTML=secs.map((s,i)=>`<li><button data-sec="${i}">${esc(s.label||'Start')}</button></li>`).join('');
+  idx=Math.min(idx,Math.max(S.length-1,0));mark()}
+function span(t,si,h){S.push({t:h?t.replace(/[^.!?]$/,'$&.'):t,si});return`<span class="s" data-i="${S.length-1}">${esc(t)}</span>`}
+function mark(scroll){
+  document.querySelectorAll('.s').forEach(e=>{const i=+e.dataset.i;e.classList.toggle('on',i===idx&&(playing||scroll));e.classList.toggle('done',i<idx)});
+  const cur=document.querySelector(`.s[data-i="${idx}"]`),pg=$('page');
+  if(cur&&scroll){const top=cur.offsetTop-pg.offsetTop-pg.clientHeight/3;pg.scrollTo({top,behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'})}
+  const si=S[idx]?S[idx].si:0;document.querySelectorAll('.out button').forEach(b=>b.classList.toggle('cur',+b.dataset.sec===si));
+  $('progbar').style.width=(S.length?idx/S.length*100:0)+'%';
+  const left=S.slice(idx).reduce((a,s)=>a+s.t.length,0)/(15*+$('rate').value);
+  $('remain').textContent=S.length?`About ${left<60?Math.ceil(left)+' sec':Math.ceil(left/60)+' min'} left`:''}
+const voices=()=>synth?synth.getVoices():[];
+let plain=false,lastErr='none';
+function utter(t){const u=new SpeechSynthesisUtterance(t),v=voices().find(v=>v.voiceURI===$('voice').value);if(v&&!plain){u.voice=v;u.lang=v.lang}else u.lang=(v&&v.lang)||navigator.language||'en-US';u.rate=+$('rate').value;u.pitch=+$('pitch').value;return u}
+let curU=null,fails=0,dog=0;
+const OPEN='https://claude.ai/artifact/UqH42hTdwx2JcXMBRMdDVT';
+function blocked(msg){stop();$('status').innerHTML=`<span class="err">${msg}</span>`+(STANDALONE?' try another browser.':` <a href="${OPEN}" style="color:var(--sky)">Open in your browser</a>`)}
+function speak(){
+  if(isClaude())return speakClaude();
+  if(!synth){blocked('This app can\'t use speech here.');return}
+  const my=++token;
+  if(synth.speaking||synth.pending)synth.cancel();
+  if(idx>=S.length){stop();idx=0;mark();setStatus('Finished. Press play to start over.');return}
+  const u=utter(S[idx].t);curU=u;
+  u.onstart=()=>{if(my===token){fails=0;clearTimeout(dog);lastErr='none (speech started)';diag()}};
+  u.onend=()=>{if(my===token&&playing){clearTimeout(dog);idx++;speak()}};
+  u.onerror=e=>{if(my!==token||!playing||e.error==='interrupted'||e.error==='canceled')return;clearTimeout(dog);lastErr=e.error||'unknown';diag();
+    if(!plain){plain=true;setStatus('Retrying with your phone\'s default voice…');return speak()}
+    if(++fails>=2)return blocked(e.error==='not-allowed'?'Speech was blocked. Tap play again, or':'Your device couldn\'t play this voice. Try another voice, or');
+    idx++;speak()};
+  clearTimeout(dog);dog=setTimeout(()=>{if(my!==token||!playing||synth.speaking)return;lastErr='no start';diag();if(!plain){plain=true;setStatus('Retrying with your phone\'s default voice…');return speak()}blocked('No sound started. Check volume and your phone\'s text-to-speech settings (see Troubleshoot below), or')},10000);
+  mark(true);synth.speak(u);if(synth.paused)synth.resume()}
+function setPlay(p){playing=p;$('play').setAttribute('aria-label',p?'Pause':'Play');$('playic').innerHTML=p?'<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>':'<path d="M7 4v16l13-8z"/>'}
+function play(){fails=0;setPlay(true);setStatus('Reading…');speak()}
+function stop(){setPlay(false);token++;clearTimeout(dog);if(T){try{T.stop()}catch(e){}}synth&&synth.cancel();mark();setStatus('Paused. Press play to continue from the highlighted sentence.')}
+function jump(i){idx=Math.max(0,Math.min(S.length-1,i));playing?speak():mark(true)}
+function sec(d){const si=S[idx]?S[idx].si:0;let t=si+d;if(d<0&&idx>secStart[si]+1)t=si;jump(secStart[Math.max(0,Math.min(secStart.length-1,t))])}
+function diag(){const ua=navigator.userAgent,os=/Android/.test(ua)?'Android':/iPhone|iPad/.test(ua)?'iPhone/iPad':'Computer',br=/CriOS|Chrome/.test(ua)?'Chrome':/Safari/.test(ua)?'Safari':'Other';
+  $('diag').textContent=`Device: ${os} · Browser: ${br} · Speech engine: ${synth?'present':'missing'} · Voices found: ${voices().length} · Default-voice mode: ${plain?'on':'off'} · Last result: ${lastErr}`}
+const setStatus=t=>$('status').textContent=t;
+
+/* ---------- tailoring panel ---------- */
+function setKind(k,r,name){
+  stop();kind=k;raw=r;docName=name;const P=PROFILES[k];
+  mode=store.get('mode-'+k,P.modes[0][0]);if(!P.modes.some(m=>m[0]===mode))mode=P.modes[0][0];
+  $('docname').textContent=name;$('badge').textContent=P.name;$('tailtitle').textContent='Tailored for '+P.name.toLowerCase()+(k==='text'?'':' files');
+  $('how').textContent=P.how;$('hdrwrap').hidden=k!=='xlsx';
+  const rate=store.get('rate-'+k,null);if(rate){$('rate').value=rate;$('ratev').textContent=(+rate).toFixed(2).replace(/0$/,'')+'×'}
+  $('modes').innerHTML=P.modes.map(([v,l])=>`<button data-mode="${v}" aria-pressed="${v===mode}">${l}</button>`).join('');
+  idx=0;build();indexDoc();msgs=[];renderMsgs();document.dispatchEvent(new Event('ras-doc'));setStatus('Ready. Press play, or tap any sentence to start there.')}
+
+/* ---------- voices ---------- */
+function fillVoices(){
+  const vs=voices(),cg=T?'<optgroup label="Claude voices (natural)">'+CV.map(v=>`<option value="claude:${v}">Claude – ${v[0].toUpperCase()+v.slice(1)}</option>`).join('')+'</optgroup>':'';
+  const saved0=store.get('voice','');
+  if(!vs.length){$('voice').innerHTML=cg+'<option value="">Default device voice</option>';$('voice').value=T?(saved0.startsWith('claude:')?saved0:'claude:buttery'):'';return}
+  const dn=(()=>{try{return new Intl.DisplayNames([navigator.language],{type:'language'})}catch(e){return null}})();
+  const groups={};vs.forEach(v=>{const g=(dn&&dn.of(v.lang))||v.lang;(groups[g]=groups[g]||[]).push(v)});
+  const mine=navigator.language.slice(0,2),keys=Object.keys(groups).sort((a,b)=>(groups[b][0].lang.startsWith(mine))-(groups[a][0].lang.startsWith(mine))||a.localeCompare(b));
+  $('voice').innerHTML=cg+keys.map(g=>`<optgroup label="${esc(g)}">${groups[g].map(v=>`<option value="${esc(v.voiceURI)}">${esc(v.name)}${v.localService?'':' (online)'}</option>`).join('')}</optgroup>`).join('');
+  const saved=store.get('voice',''),pick=vs.find(v=>v.voiceURI===saved)||vs.find(v=>v.default&&v.lang.startsWith(mine))||vs.find(v=>v.lang.startsWith(mine))||vs[0];
+  $('voice').value=T&&(saved.startsWith('claude:')||!saved)?(saved||'claude:buttery'):pick.voiceURI}
+diag();setInterval(diag,3000);
+if(synth){fillVoices();synth.onvoiceschanged=fillVoices;let tries=0;const vt=setInterval(()=>{if(voices().length||++tries>20){clearInterval(vt);if(voices().length&&!$('voice').value.includes(':')&&$('voice').options.length<2)fillVoices();if(!voices().length)setStatus('No voices found yet. Press play to try the default voice.')}},250)}
+
+/* ---------- events ---------- */
+$('play').onclick=()=>playing?stop():play();
+$('nse').onclick=()=>jump(idx+1);$('pse').onclick=()=>jump(idx-1);
+$('nsec').onclick=()=>sec(1);$('psec').onclick=()=>sec(-1);
+$('page').onclick=e=>{const s=e.target.closest('.s');if(s){idx=+s.dataset.i;play()}};
+$('outline').onclick=e=>{const b=e.target.closest('button');if(b)jump(secStart[+b.dataset.sec])};
+$('modes').onclick=e=>{const b=e.target.closest('button');if(!b)return;mode=b.dataset.mode;store.set('mode-'+kind,mode);
+  [...$('modes').children].forEach(c=>c.setAttribute('aria-pressed',c===b));const was=playing;stop();idx=0;build();if(was)play()};
+$('announce').onchange=$('hdr').onchange=()=>{const was=playing;stop();build();indexDoc();if(was)play()};
+$('voice').onchange=()=>{plain=false;store.set('voice',$('voice').value);if(playing)speak()};
+$('rate').oninput=()=>{$('ratev').textContent=(+$('rate').value).toFixed(2).replace(/0$/,'')+'×';store.set('rate-'+kind,$('rate').value);mark()};
+$('rate').onchange=()=>{if(playing){if(isClaude()){try{T.setRate(crate())}catch(e){}}else speak()}};$('pitch').onchange=()=>{if(playing&&!isClaude())speak()};
+$('pitch').oninput=()=>$('pitchv').textContent=(+$('pitch').value).toFixed(2).replace(/0$/,'');
+$('test').onclick=()=>{if(isClaude()){stop();T.speak('Hello! This is how I will read your documents.',{voice:cvoice(),rate:crate()}).catch(e=>setStatus('Claude voice unavailable here ('+(e&&e.code)+'). Pick a device voice.'));return}if(!synth)return blocked('This app can\'t use speech here.');stop();const u=utter('Hello! This is how I will read your documents.');curU=u;u.onerror=e=>blocked('That voice didn\'t play ('+e.error+'). Try another voice, or');synth.speak(u)};
+$('readpaste').onclick=()=>{const t=$('paste').value.trim();if(t)setKind('text',textSecs(t),'Pasted text')};
+async function open(f){if(!f)return;stop();setStatus('Opening '+f.name+'…');
+  try{const[k,r]=await parse(f);setKind(k,r,f.name)}catch(e){setStatus('');$('status').innerHTML=`<span class="err">${esc(e.message||'Could not read that file.')}</span>`}}
+$('file').onchange=e=>open(e.target.files[0]);
+const rd=$('reader');
+['dragenter','dragover'].forEach(t=>rd.addEventListener(t,e=>{e.preventDefault();rd.classList.add('over')}));
+['dragleave','drop'].forEach(t=>rd.addEventListener(t,e=>{e.preventDefault();rd.classList.remove('over')}));
+rd.addEventListener('drop',e=>open(e.dataTransfer.files[0]));
+document.addEventListener('keydown',e=>{if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
+  if(e.code==='Space'){e.preventDefault();playing?stop():play()}else if(e.key==='ArrowRight')jump(idx+1);else if(e.key==='ArrowLeft')jump(idx-1)});
+
+/* ---------- Claude capabilities ---------- */
+const CV=['buttery','airy','glassy','rounded'];
+const LOCAL={
+  sample:()=>API_URL?async function S(conv,o={},t=0){o.onText&&o.onText({text:'Thinking...'});
+    let r;try{r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:conv,deep:o.modelTier==='complex'}),signal:o.signal})}
+    catch(e){if(e.name==='AbortError')throw e;throw{code:'network'}}
+    const j=await r.json().catch(()=>({}));if(r.status===429)throw{code:'rate_limited'};if(!r.ok||!j.text){if(!t)return S(conv,o,1);throw{code:'error',message:j.error}}return{text:j.text}}:null,
+  dictation:()=>{const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return null;let rec=null;const cb={};
+    return{start(){return new Promise((ok,no)=>{rec=new R();rec.lang=navigator.language||'en-US';rec.interimResults=true;rec.continuous=false;
+        rec.onstart=()=>{cb.s&&cb.s({state:'listening'});ok()};
+        rec.onresult=e=>{let fin='',part='';for(let i=e.resultIndex;i<e.results.length;i++){const x=e.results[i];if(x.isFinal)fin+=x[0].transcript;else part+=x[0].transcript}
+          if(fin)cb.f&&cb.f({text:fin.trim()});else if(part)cb.p&&cb.p({text:part.trim()})};
+        rec.onerror=e=>{if(/not-allowed/.test(e.error))no({code:'not_granted'})};
+        rec.onend=()=>cb.s&&cb.s({state:'idle',reason:'stopped'});
+        try{rec.start()}catch(err){no({code:'error'})}})},
+      stop(){try{rec&&rec.stop()}catch(e){}return Promise.resolve()},onPartial(f){cb.p=f},onFinal(f){cb.f=f},onState(f){cb.s=f}}},
+  tts:()=>null};
+const cu=n=>{try{return !STANDALONE?Promise.resolve(claude.use(n)).catch(()=>null):Promise.resolve(LOCAL[n]?LOCAL[n]():null)}catch(e){return Promise.resolve(null)}};
+const isClaude=()=>!!T&&$('voice').value.startsWith('claude:');
+const cvoice=()=>$('voice').value.slice(7)||'buttery';
+const crate=()=>Math.min(1.5,Math.max(0.7,+$('rate').value));
+let readingClaude=false;
+function speakClaude(){
+  const my=++token;if(synth&&(synth.speaking||synth.pending))synth.cancel();
+  if(idx>=S.length){stop();idx=0;mark();setStatus('Finished. Press play to start over.');return}
+  const start=idx,v=cvoice(),batch=S.slice(start,start+40).map((s,i)=>({text:s.t,voice:v,id:String(start+i)}));
+  readingClaude=true;mark(true);
+  T.speak(batch,{rate:crate()}).then(()=>{if(my===token&&playing){idx=start+batch.length;speak()}})
+   .catch(e=>{if(my!==token)return;const c=e&&e.code;
+     if(c==='viewer_stopped'||c==='busy'){stop();return}
+     lastErr='claude voice: '+c;diag();setStatus('Claude voice unavailable ('+c+'). Switching to your device voice…');
+     const o=[...$('voice').options].find(o=>!o.value.startsWith('claude:'));if(o){$('voice').value=o.value;speak()}else stop()})}
+cu('tts').then(t=>{if(!t)return;T=t;
+  t.onLine(({id})=>{if(readingClaude&&playing&&id!=null){idx=+id;mark(true)}});
+  t.onState(({state,reason})=>{if(state==='idle'&&reason==='viewer_stopped'&&playing&&readingClaude){setPlay(false);token++;mark()}});
+  fillVoices();diag()});
+samplePromise=cu('sample').then(x=>{SAMPLE=x;if(!x)$('tip').textContent=STANDALONE?'Questions are not switched on for this site yet.':'Questions need Claude: open this page on claude.ai while signed in.';return x});
+
+/* ---------- grounding: chunk + retrieve ---------- */
+const FULL={text:'full',docx:'full',pdf:'clean',pptx:'notes',xlsx:'both'};
+const STOPW=new Set('the a an and or of to in on for is are was were be by with as at from that this it its what which who how why when where do does did can could should would about into than then there their they them you your me my we our not but have has had will just also more most some any all each'.split(' '));
+const toks=t=>(t.toLowerCase().match(/[a-z0-9][a-z0-9'%.-]*/g)||[]).filter(w=>w.length>2&&!STOPW.has(w));
+let C=[],DF={};
+function indexDoc(){
+  const save=mode;mode=FULL[kind];let secs=[];try{secs=B[kind]()}catch(e){}finally{mode=save}
+  C=[];secs.forEach(sec=>{let cur='';const flush=()=>{if(cur){C.push({n:C.length+1,label:sec.label||'Start',text:cur});cur=''}};
+    sec.paras.forEach(p=>{if((cur+' '+p).length>1200&&cur)flush();cur=cur?cur+' '+p:p});flush()});
+  DF={};C.forEach(c=>{c.tf={};toks(c.label+' '+c.text).forEach(w=>c.tf[w]=(c.tf[w]||0)+1);Object.keys(c.tf).forEach(w=>DF[w]=(DF[w]||0)+1)})}
+function rank(q,k){const qt=[...new Set(toks(q))],N=C.length;
+  return C.map(c=>{let sc=0;qt.forEach(w=>{const f=c.tf[w];if(f)sc+=(1+Math.log(f))*Math.log(1+N/DF[w])});return[sc,c]}).filter(x=>x[0]>0).sort((a,b)=>b[0]-a[0]).slice(0,k).map(x=>x[1])}
+function hereLabel(){const s=S[idx];return s&&curSecs[s.si]?curSecs[s.si].label||'Start':''}
+function context(q){
+  const total=C.reduce((a,c)=>a+c.text.length,0);if(total<=24000)return C;
+  const pick=new Set([C[0],...rank(q,12),...C.filter(c=>c.label===hereLabel()).slice(0,2)].filter(Boolean));
+  let out=[...pick].sort((a,b)=>a.n-b.n),len=0;return out.filter(c=>(len+=c.text.length)<=18000)}
+
+/* ---------- conversation ---------- */
+let msgs=[],ac=null,dict={base:'',on:false};
+const tip=t=>$('tip').textContent=t||'';
+function fmtAnswer(t){
+  return t.split(/\n{1,}/).filter(x=>x.trim()).map(par=>{
+    let gk=/^\s*Beyond the document:?/i.test(par);
+    let h=esc(par).replace(/\[(\d+(?:\s*,\s*\d+)*)\]/g,(m,ns)=>ns.split(',').map(n=>+n.trim()).filter(n=>C[n-1]).map(n=>`<button class="cite" data-n="${n}" aria-label="Source ${n}: ${esc(C[n-1].label)}">${n}</button>`).join(''));
+    if(gk)h=h.replace(/^\s*Beyond the document:?/i,'<b>Beyond the document:</b>');
+    h=h.replace(/^\s*[-•]\s+/,'• ');
+    return`<p${gk?' class="gk"':''}>${h}</p>`}).join('')}
+function renderMsgs(){
+  $('msgs').innerHTML=msgs.map(m=>{
+    if(m.role==='sys')return`<div class="m sys">${esc(m.text)}</div>`;
+    if(m.role==='user')return`<div class="m u">${esc(m.text)}</div>`;
+    const used=[...new Set((m.text.match(/\[(\d+(?:\s*,\s*\d+)*)\]/g)||[]).join(',').match(/\d+/g)||[])].map(Number).filter(n=>C[n-1]).sort((a,b)=>a-b);
+    return`<div class="m a">${fmtAnswer(m.text||'…')}${m.err?`<p class="err">${esc(m.err)}</p>`:''}${used.length&&m.done?`<div class="srcs">Sources: ${used.map(n=>`<button class="cite" data-n="${n}">${n} · ${esc(C[n-1].label)}</button>`).join('')}</div>`:''}</div>`}).join('')||'<div class="m sys">Ask anything by typing or speaking.</div>';
+  const box=$('msgs');box.scrollTop=box.scrollHeight}
+function setBusy(b){$('sendic').innerHTML=b?'<path d="M6 6h12v12H6z"/>':'<path d="M3 20l18-8L3 4v6l12 2-12 2z"/>';$('send').setAttribute('aria-label',b?'Stop answer':'Send')}
+function quiet(){if(playing)stop();if(T){try{T.stop()}catch(e){}}if(synth)synth.cancel()}
+async function ask(q){
+  q=q.trim();if(!q)return;
+  if(q==='__here'){const s=S[idx];q=s?`Explain this part in simple terms, in context: "${s.t}"`:'Explain the start of this document.'}
+  quiet();$('q').value='';dict.base='';
+  const hist=msgs.filter(m=>(m.role==='user'||m.role==='assistant')&&m.done!==false&&!m.err).slice(-8);
+  msgs.push({role:'user',text:q});const m={role:'assistant',text:'',done:false};msgs.push(m);renderMsgs();
+  const S0=SAMPLE||await samplePromise;
+  if(!S0){m.err=STANDALONE?'Questions are not switched on for this site yet (the site owner needs to add the AI helper).':'Answers need Claude. Open this page on claude.ai while signed in.';m.done=true;renderMsgs();return}
+  const lastQ=hist.filter(x=>x.role==='user').slice(-1).map(x=>x.text).join(' ');
+  const ctx=context(q+' '+lastQ),docOnly=$('ground').value==='doc';
+  const instr=`You are a reading companion inside a read-aloud app. The user is listening to "${docName}" (a ${PROFILES[kind].name} file) and asks you questions about it, by voice or text.
+Currently being read: ${hereLabel()||'the start'}${S[idx]?` — "${S[idx].t}"`:''}
+
+Rules:
+- Ground your answer in the numbered SOURCES from the document. After each claim taken from them, cite its number in square brackets, like [3] or [2, 5]. Cite only numbers that appear below.
+- Think the question through before answering. For spreadsheet questions, do the arithmetic carefully and show the key figures.
+- ${docOnly?'Answer ONLY from the document. If it does not contain the answer, say so plainly and suggest what the user could look for.':'If the document does not fully answer it, or useful context would help, you may add general knowledge in a final separate paragraph that starts with "Beyond the document:". Never put citations in that paragraph, and never present general knowledge as if the document said it.'}
+${STANDALONE?'':`- If the passages shown are not enough, call search_document to look elsewhere in the file${kind==='xlsx'?', or get_rows to read raw spreadsheet rows':''}.\n`}- Answers may be read aloud: write natural, plain sentences. Usually 2 to 6 sentences; longer only if asked. No markdown headings, no tables, no bold; short "- " lists are fine.
+- If the user is answering a quiz question you asked, tell them if they are right, explain briefly with a citation, then ask the next question.
+
+SOURCES
+${ctx.map(c=>`[${c.n}] (${c.label}) ${c.text}`).join('\n\n')}
+
+QUESTION: ${q}`;
+  const conv=[];hist.forEach(x=>{const r=x.role==='user'?'user':'assistant';if(!conv.length&&r!=='user')return;if(conv.length&&conv[conv.length-1].role===r)conv[conv.length-1].content+='\n'+x.text;else conv.push({role:r,content:x.text})});
+  if(conv.length&&conv[conv.length-1].role==='user')conv.pop();
+  conv.push({role:'user',content:instr});
+  const tools=[{name:'search_document',description:'Search the whole document for passages about a topic. Returns numbered passages you can cite.',inputSchema:{type:'object',properties:{query:{type:'string',description:'Keywords to search for'}},required:['query']},
+    execute:({query})=>rank(String(query||''),5).map(c=>`[${c.n}] (${c.label}) ${c.text.slice(0,900)}`).join('\n\n')||'No matching passages.'}];
+  if(kind==='xlsx')tools.push({name:'get_rows',description:'Read raw rows from a spreadsheet sheet as CSV (header row first). Max 80 rows per call.',inputSchema:{type:'object',properties:{sheet:{type:'string'},start:{type:'integer',description:'1-based data row to start from'},count:{type:'integer'}},required:['sheet']},
+    execute:({sheet,start,count})=>{const sh=raw.find(x=>x.name===sheet)||raw[0];if(!sh)throw new Error('No such sheet');const st=Math.max(1,start||1),n=Math.min(80,Math.max(1,count||40));
+      const rows=[sh.rows[0],...sh.rows.slice(st,st+n)];return `Sheet ${sh.name}, ${sh.rows.length-1} data rows total\n`+rows.map(r=>r.map(v=>/[",\n]/.test(String(v))?'"'+String(v).replace(/"/g,'""')+'"':v).join(',')).join('\n')}});
+  ac=new AbortController();setBusy(true);
+  try{const r=await S0(conv,{tools,modelTier:$('deep').checked?'complex':'default',cache:false,signal:ac.signal,onText:({text})=>{m.text=text;renderMsgs()}});
+    m.text=r.text||m.text;m.done=true;renderMsgs();
+    if($('speakans').checked)speakAnswer(m.text)}
+  catch(e){m.done=true;const c=e&&e.code;if(e&&e.text)m.text=e.text;
+    m.err=c==='network'?'Could not reach the AI helper. Check your connection.':c==='not_granted'?'Claude access was declined for this page. Reload and allow it to ask questions.':c==='rate_limited'?'Too many questions at once. Wait a minute and try again.':e&&e.name==='AbortError'||c==='aborted'?'Stopped.':'Something went wrong getting an answer. Try again.';renderMsgs()}
+  finally{ac=null;setBusy(false)}}
+let ansU=[];
+function speakAnswer(t){
+  const clean=t.replace(/\[\d+(?:\s*,\s*\d+)*\]/g,'').replace(/Beyond the document:/i,'Beyond the document,').replace(/^\s*[-•]\s+/gm,'').replace(/\s+/g,' ').replace(/\s+([.,;:!?])/g,'$1').trim().slice(0,1990);
+  if(!clean)return;
+  if(isClaude()){T.speak(clean,{voice:cvoice(),rate:crate()}).catch(()=>{});return}
+  if(!synth)return;synth.cancel();ansU=split(clean).map(x=>utter(x));ansU.forEach(u=>synth.speak(u))}
+$('askf').onsubmit=e=>{e.preventDefault();if(ac){ac.abort();return}ask($('q').value)};
+$('q').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('askf').requestSubmit()}});
+$('sugg').onclick=e=>{const b=e.target.closest('button');if(b&&!ac)ask(b.dataset.q)};
+document.addEventListener('click',e=>{const c=e.target.closest('.cite');if(!c)return;const ch=C[+c.dataset.n-1];if(!ch)return;
+  const i=curSecs.findIndex(s=>(s.label||'Start')===ch.label);
+  if(i<0){tip(`That's in "${ch.label}", which this reading mode hides. Switch mode to see it.`);return}
+  const w=toks(ch.text).slice(0,6),k=S.findIndex((s,j)=>s.si===i&&w.some(x=>s.t.toLowerCase().includes(x)));
+  jump(k>=0?k:secStart[i]);$('reader').scrollIntoView({behavior:'smooth',block:'start'});tip('Showing source '+ch.n+' in the reader.')});
+
+/* ---------- speaking the question ---------- */
+cu('dictation').then(d=>{if(!d)return;D=d;
+  d.onPartial(({text})=>{$('q').value=(dict.base+' '+text).trim()});
+  d.onFinal(({text})=>{dict.base=(dict.base+' '+text).trim();$('q').value=dict.base});
+  d.onState(({state,reason})=>{dict.on=state==='listening';$('mic').classList.toggle('on',dict.on);$('mic').setAttribute('aria-label',dict.on?'Stop listening':'Speak your question');
+    if(dict.on)tip('Listening… tap the mic again when you are done.');
+    else{tip('');if(reason!=='hidden'&&$('q').value.trim()&&!ac)ask($('q').value)}})});
+$('mic').onclick=()=>{
+  if(D){if(dict.on){D.stop().catch(()=>{});return}
+    dict.base=$('q').value.trim();
+    D.start().catch(e=>{const c=e&&e.code;if(c==='not_granted'){D=null;tip('Microphone was declined. Tip: use the mic key on your phone keyboard instead.')}else tip('The mic did not start. Tap it again.')});
+    quiet();return}
+  tip("Tap the microphone key on your phone's keyboard and speak, then press send.");$('q').focus()};
+
+/* ---------- hooks for add-on modules ---------- */
+window.RAS={info:()=>({kind,docName,type:PROFILES[kind].name}),fullSecs:()=>{const save=mode;mode=FULL[kind];try{return B[kind]()}finally{mode=save}},raw:()=>raw,ask:async(conv,o)=>{const s=SAMPLE||await samplePromise;if(!s)throw{code:'unavailable'};return s(conv,o)},load:(name,secs)=>setKind('text',secs,name),find:q=>{const k=String(q||'').toLowerCase().replace(/\s+/g,' ').trim();if(!k)return false;let i=S.findIndex(s=>s.t.toLowerCase().includes(k));if(i<0){const w=k.split(' ').slice(0,4).join(' ');i=S.findIndex(s=>s.t.toLowerCase().includes(w))}if(i<0)return false;jump(i);$('reader').scrollIntoView({behavior:'smooth',block:'start'});return true},split,esc};
+
+/* ---------- sample ---------- */
+setKind('text',textSecs(`# Welcome
+This is a sample to show how the reader works. Press the pink play button, or tap any sentence to start from there. The sentence being spoken lights up as it goes.
+
+# Every file is read differently
+A PDF has its headers, footers and page numbers removed, so you hear the content and not the layout. A slide deck is read like a presenter would read it, with titles, bullet points and speaker notes. A spreadsheet is summarised first, with totals and ranges, because nobody wants to hear every cell.
+
+# Your voice, your pace
+Pick any voice your device offers, and set the speed and pitch. The app remembers your voice, and keeps a separate speed for each kind of file.`),'Sample: how this app reads');
+}
+</script>
+<script src="studio-pro.js?v=3"></script>
+<script src="studio-data.js?v=3"></script>
+</body>
+</html>
